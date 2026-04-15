@@ -7,6 +7,8 @@ Rectangle {
     property string bodyText: ""
     property string metaText: ""
     property bool active: false
+    property bool highlightTitle: false
+    property bool highlightMeta: false
 
     signal clicked()
 
@@ -39,9 +41,10 @@ Rectangle {
         Text {
             width: parent.width
             text: root.titleText
-            color: "#1b1814"
+            color: root.highlightTitle ? "#171512" : "#1b1814"
             font.pixelSize: 29
             font.bold: true
+            font.underline: root.highlightTitle
             wrapMode: Text.Wrap
             maximumLineCount: 2
             elide: Text.ElideRight
@@ -51,10 +54,11 @@ Rectangle {
             visible: !!root.metaText
             width: parent.width
             text: root.metaText
-            color: "#746b5d"
+            color: root.highlightMeta ? "#171512" : "#746b5d"
             font.pixelSize: 17
             font.bold: true
             font.letterSpacing: 1.0
+            font.underline: root.highlightMeta
             wrapMode: Text.Wrap
             maximumLineCount: 2
             elide: Text.ElideRight

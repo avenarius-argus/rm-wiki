@@ -630,7 +630,9 @@ Rectangle {
                                             width: resultsViewport.width
                                             titleText: modelData.title
                                             bodyText: modelData.snippetText
-                                            metaText: "Open in reader"
+                                            metaText: "Open article"
+                                            highlightTitle: true
+                                            highlightMeta: true
                                             active: root.currentArticle && root.currentArticle.canonicalTitle === modelData.canonicalTitle
                                             onClicked: root.openArticle(modelData.canonicalTitle, false)
                                         }
@@ -969,12 +971,6 @@ Rectangle {
                                 label: "Back"
                                 minimumWidth: 98
                                 onClicked: root.articleFocused = false
-                            }
-
-                            InkButton {
-                                label: "Type"
-                                minimumWidth: 110
-                                onClicked: root.openTypographySettings()
                             }
 
                             InkButton {

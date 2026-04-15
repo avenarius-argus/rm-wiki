@@ -44,6 +44,7 @@ PanelSurface {
                 titleText: root.searchMode ? modelData.query : modelData.title
                 metaText: root.searchMode ? "Recent search" : modelData.description
                 bodyText: root.searchMode ? "" : modelData.snippetText
+                highlightTitle: !root.searchMode
                 onClicked: root.itemSelected(modelData)
             }
         }
