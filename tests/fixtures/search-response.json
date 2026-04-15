@@ -1,0 +1,15 @@
+{
+  "query": {
+    "search": [
+      {
+        "title": "ReMarkable",
+        "snippet": "<span class=\"searchmatch\">ReMarkable</span> is a paper tablet &amp; note-taking device."
+      },
+      {
+        "title": "Wikipedia",
+        "snippet": "Wikipedia is a free &quot;encyclopedia&quot; written collaboratively."
+      }
+    ]
+  }
+}
+

@@ -1,0 +1,11 @@
+{
+  "title": "ReMarkable",
+  "description": "Paper tablet",
+  "extract": "reMarkable is a paper tablet.\n\nIt supports focused reading and note-taking.",
+  "content_urls": {
+    "desktop": {
+      "page": "https://en.wikipedia.org/wiki/ReMarkable"
+    }
+  }
+}
+

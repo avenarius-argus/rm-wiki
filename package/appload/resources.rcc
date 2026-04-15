@@ -1,0 +1,4 @@
+RM_WIKI_RCC_PLACEHOLDER
+Qt rcc is not available on this host yet.
+Run `npm run build-rcc` after installing a working Qt rcc binary.
+

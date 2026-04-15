@@ -1,0 +1,15 @@
+<RCC>
+  <qresource prefix="/">
+    <file alias="main.qml">qml/main.qml</file>
+    <file alias="components/AppStore.qml">qml/components/AppStore.qml</file>
+    <file alias="components/HistorySection.qml">qml/components/HistorySection.qml</file>
+    <file alias="components/InkButton.qml">qml/components/InkButton.qml</file>
+    <file alias="components/PanelSurface.qml">qml/components/PanelSurface.qml</file>
+    <file alias="components/ResultTile.qml">qml/components/ResultTile.qml</file>
+    <file alias="components/SearchField.qml">qml/components/SearchField.qml</file>
+    <file alias="js/cache.js">js/cache.js</file>
+    <file alias="js/history.js">js/history.js</file>
+    <file alias="js/wikipedia.js">js/wikipedia.js</file>
+  </qresource>
+</RCC>
+

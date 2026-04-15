@@ -1,0 +1,12 @@
+{
+  "query": {
+    "pages": [
+      {
+        "pageid": 1,
+        "title": "ReMarkable",
+        "extract": "reMarkable is a paper tablet.\n\nIt is designed for focused reading and note-taking.\n\nThis is body text."
+      }
+    ]
+  }
+}
+
