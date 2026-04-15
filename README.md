@@ -1,31 +1,77 @@
 # rm-wiki
 
-`rm-wiki` is a frontend-only Wikipedia reader scaffold for reMarkable Paper Pro and Paper Pro Move. It is designed to run inside Xovi/AppLoad and to install cleanly on Vellum-managed devices.
+`rm-wiki` is a minimalist Wikipedia reader for reMarkable Paper Pro and Paper Pro Move. It runs inside Xovi/AppLoad, favors calm typography over web-like chrome, and treats reading as a paged experience rather than a scrolling feed.
 
-## What is implemented
+## Current direction
 
-- A QML AppLoad frontend shell with explicit search, results, article reading, recent history, and cache-aware offline fallback.
-- Shared JS modules for Wikipedia API normalization, cache TTL logic, and recent-history management.
-- Packaging scripts for AppLoad artifacts, including manifest generation, RCC compilation when Qt is available, static package verification, and SSH deployment.
-- Host-side tests for normalization, TTL handling, recent-history limits, and package contract verification.
+- Explicit search with large touch targets and recent-history shortcuts.
+- Paged article reading to reduce e-ink refresh noise.
+- Reader font size controls that persist between launches.
+- Packaging and deploy scripts for AppLoad on Xovi-managed devices.
 
-## Host constraint
+## Why it exists
 
-This machine does not currently have a working Qt `rcc` binary available. The repository therefore ships a placeholder `resources.rcc` artifact so the package structure and verification flow exist now. Run `npm run build-rcc` once Qt is installed to replace the placeholder with a real compiled RCC bundle.
+Most tablet-friendly Wikipedia UIs assume a glass screen, fast refresh, and an always-on browser model. `rm-wiki` is being built for the opposite environment:
 
-## Scripts
+- e-ink first
+- low visual noise
+- one task at a time
+- text treated like a document, not a web page
 
-- `npm test`
-- `npm run build-rcc`
-- `npm run package-appload`
-- `npm run verify-package`
-- `npm run install-to-device`
+## Project layout
 
-## Device install assumptions
+- `src/qml`: the AppLoad QML UI and components.
+- `src/js`: Wikipedia API shaping, cache/history logic, and reader pagination helpers.
+- `package/appload`: `manifest.json`, icon assets, and the compiled `resources.rcc`.
+- `scripts`: build, package, verify, and SSH deploy tooling.
+- `tests`: host-side Node tests for normalization, cache/history behavior, packaging, and pagination.
 
-- Developer Mode is enabled.
-- Xovi and AppLoad are already installed on the device.
-- SSH access is available, defaulting to `root@10.11.99.1`.
+## Commands
 
-The install script refuses to deploy if the RCC artifact is still the placeholder or if the remote Xovi/AppLoad directories are missing.
+```bash
+npm test
+npm run build-rcc
+npm run package-appload
+npm run verify-package
+npm run install-to-device
+```
 
+## Device deploy
+
+The install script targets Xovi/AppLoad deployments and expects:
+
+- Developer Mode enabled on the device
+- SSH access available
+- Xovi/AppLoad already installed
+
+Useful environment variables:
+
+```bash
+RM_HOST=192.168.8.129
+RM_USER=root
+RM_PASSWORD=your-device-password
+RM_OVERWRITE=1
+```
+
+Example:
+
+```bash
+RM_HOST=192.168.8.129 \
+RM_PASSWORD=your-device-password \
+RM_OVERWRITE=1 \
+node scripts/install-to-device.js
+```
+
+The installer refuses to deploy a placeholder `resources.rcc`. Run `npm run build-rcc` first.
+
+## Build note
+
+This repo needs a working Qt `rcc` binary to compile the AppLoad resource bundle. The build script checks common Homebrew and `~/Qt/...` install paths, and you can override detection with `RCC_BIN=/full/path/to/rcc`.
+
+## Status
+
+This is active device-first work, not a polished release. The current focus is:
+
+- making the AppLoad frontend stable on real hardware
+- refining the reading interaction for e-ink
+- improving the visual language so it feels native to a paper tablet instead of a browser port

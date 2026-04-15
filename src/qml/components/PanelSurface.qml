@@ -5,11 +5,11 @@ Rectangle {
 
     default property alias contentData: container.data
 
-    property color surfaceColor: "#f5f2e8"
-    property color outlineColor: "#5e594d"
-    property int contentPadding: 22
+    property color surfaceColor: "#f7f1e4"
+    property color outlineColor: "#d1c7b7"
+    property int contentPadding: 24
 
-    radius: 28
+    radius: 34
     border.width: 1
     border.color: outlineColor
     color: surfaceColor
@@ -20,4 +20,3 @@ Rectangle {
         anchors.margins: root.contentPadding
     }
 }
-

@@ -11,23 +11,23 @@ Rectangle {
     signal clicked()
 
     width: parent ? parent.width : 360
-    radius: 18
-    border.width: 1
-    border.color: active ? "#1a1a17" : "#6b665b"
-    color: mouseArea.pressed ? "#e0dbcf" : active ? "#ece7d8" : "#faf8f2"
-    implicitHeight: tileColumn.implicitHeight + 26
+    radius: 24
+    border.width: active ? 1 : 0
+    border.color: "#181815"
+    color: mouseArea.pressed ? "#ece3d5" : active ? "#efe6d8" : "#f9f4ea"
+    implicitHeight: tileColumn.implicitHeight + 24
 
     Column {
         id: tileColumn
         anchors.fill: parent
-        anchors.margins: 14
-        spacing: 8
+        anchors.margins: 16
+        spacing: 6
 
         Text {
             width: parent.width
             text: root.titleText
             color: "#181815"
-            font.pixelSize: 26
+            font.pixelSize: 28
             font.bold: true
             wrapMode: Text.Wrap
         }
@@ -36,8 +36,9 @@ Rectangle {
             visible: !!root.metaText
             width: parent.width
             text: root.metaText
-            color: "#4f493f"
-            font.pixelSize: 20
+            color: "#6b6254"
+            font.pixelSize: 18
+            font.letterSpacing: 1.2
             wrapMode: Text.Wrap
         }
 
@@ -45,10 +46,10 @@ Rectangle {
             visible: !!root.bodyText
             width: parent.width
             text: root.bodyText
-            color: "#2c2a25"
+            color: "#302c25"
             font.pixelSize: 22
             wrapMode: Text.Wrap
-            maximumLineCount: 4
+            maximumLineCount: 3
             elide: Text.ElideRight
         }
     }
@@ -59,4 +60,3 @@ Rectangle {
         onClicked: root.clicked()
     }
 }
-

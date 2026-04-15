@@ -2,7 +2,7 @@
   "id": "rm-wiki",
   "name": "Wikipedia",
   "loadsBackend": false,
-  "entry": "main.qml",
+  "entry": "/main.qml",
   "canHaveMultipleFrontends": false,
   "supportsScaling": true
 }

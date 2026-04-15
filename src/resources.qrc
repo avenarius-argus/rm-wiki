@@ -9,7 +9,7 @@
     <file alias="components/SearchField.qml">qml/components/SearchField.qml</file>
     <file alias="js/cache.js">js/cache.js</file>
     <file alias="js/history.js">js/history.js</file>
+    <file alias="js/pagination.js">js/pagination.js</file>
     <file alias="js/wikipedia.js">js/wikipedia.js</file>
   </qresource>
 </RCC>
-

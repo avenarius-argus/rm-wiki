@@ -10,11 +10,23 @@ Rectangle {
 
     signal submitted(string text)
 
-    radius: 18
+    function dismissKeyboard() {
+        inputField.focus = false;
+        if (Qt.inputMethod && Qt.inputMethod.hide) {
+            Qt.inputMethod.hide();
+        }
+    }
+
+    function submit() {
+        dismissKeyboard();
+        root.submitted(root.text);
+    }
+
+    radius: 28
     border.width: 1
-    border.color: "#5d574d"
-    color: "#fcfaf3"
-    implicitHeight: 74
+    border.color: inputField.activeFocus ? "#181815" : "#d1c6b5"
+    color: "#fbf6eb"
+    implicitHeight: 84
 
     RowLayout {
         anchors.fill: parent
@@ -24,42 +36,43 @@ Rectangle {
         Rectangle {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            radius: 12
-            color: "#f7f4eb"
+            radius: 18
+            color: "#f8f2e6"
             border.width: 0
 
             TextInput {
                 id: inputField
                 anchors.fill: parent
-                anchors.margins: 14
+                anchors.margins: 18
                 clip: true
                 color: "#181815"
-                font.pixelSize: 28
+                font.pixelSize: 32
                 selectByMouse: true
                 verticalAlignment: TextInput.AlignVCenter
                 inputMethodHints: Qt.ImhNoPredictiveText
-                Keys.onReturnPressed: root.submitted(text)
+                Keys.onReturnPressed: root.submit()
             }
 
             Text {
                 anchors.verticalCenter: parent.verticalCenter
                 anchors.left: parent.left
-                anchors.leftMargin: 14
+                anchors.leftMargin: 18
                 visible: !inputField.text.length && !inputField.activeFocus
                 text: root.placeholderText
-                color: "#757064"
-                font.pixelSize: 28
+                color: "#817869"
+                font.pixelSize: 30
             }
         }
 
         InkButton {
-            Layout.preferredWidth: 164
+            Layout.preferredWidth: 150
             Layout.fillHeight: true
-            label: root.busy ? "Working" : "Search"
+            label: root.busy ? "WAIT" : "SEARCH"
             emphasized: true
             disabled: root.busy
-            onClicked: root.submitted(root.text)
+            minimumWidth: 150
+            pixelSize: 19
+            onClicked: root.submit()
         }
     }
 }
-

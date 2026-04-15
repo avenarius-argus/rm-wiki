@@ -16,6 +16,7 @@ const user = process.env.RM_USER || "root";
 const password = process.env.RM_PASSWORD || "";
 const remoteAppLoadDir = process.env.RM_APPLOAD_DIR || "/home/root/xovi/exthome/appload";
 const remoteAppDir = `${remoteAppLoadDir}/${APP_ID}`;
+const remoteBackupDir = process.env.RM_BACKUP_DIR || `/home/${user}/.appload-backups`;
 const overwrite = process.env.RM_OVERWRITE === "1";
 const remoteTarget = `${user}@${host}`;
 
@@ -94,7 +95,13 @@ if (existing.status === 0 && !overwrite) {
 }
 
 if (existing.status === 0 && overwrite) {
-  const backupPath = `${remoteAppDir}.bak.${Date.now()}`;
+  const backupPath = `${remoteBackupDir}/${APP_ID}.${Date.now()}`;
+  runOrExit("ssh", [
+    "-p",
+    port,
+    remoteTarget,
+    `mkdir -p ${remoteBackupDir}`
+  ]);
   runOrExit("ssh", [
     "-p",
     port,

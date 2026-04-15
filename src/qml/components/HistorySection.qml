@@ -20,17 +20,18 @@ PanelSurface {
 
         Text {
             width: parent.width
-            text: root.heading
-            color: "#181815"
-            font.pixelSize: 30
+            text: root.heading.toUpperCase()
+            color: "#6a6255"
+            font.pixelSize: 18
             font.bold: true
+            font.letterSpacing: 2.2
         }
 
         Text {
             visible: !(root.items && root.items.length)
             width: parent.width
             text: root.emptyText
-            color: "#565146"
+            color: "#5f584d"
             font.pixelSize: 22
             wrapMode: Text.Wrap
         }
@@ -48,4 +49,3 @@ PanelSurface {
         }
     }
 }
-

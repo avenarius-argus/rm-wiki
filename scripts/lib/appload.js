@@ -4,7 +4,7 @@ const path = require("path");
 const ROOT_DIR = path.resolve(__dirname, "..", "..");
 const APP_ID = "rm-wiki";
 const APP_NAME = "Wikipedia";
-const MANIFEST_ENTRY = "main.qml";
+const MANIFEST_ENTRY = "/main.qml";
 const RCC_PLACEHOLDER_MARKER = "RM_WIKI_RCC_PLACEHOLDER";
 const PACKAGE_SOURCE_DIR = path.join(ROOT_DIR, "package", "appload");
 const DIST_DIR = path.join(ROOT_DIR, "dist", APP_ID);
@@ -118,4 +118,3 @@ module.exports = {
   verifyPackageDirectory,
   writeManifest
 };
-
