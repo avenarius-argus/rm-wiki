@@ -76,9 +76,13 @@ FocusScope {
 
                 TextInput {
                     id: inputField
-                    anchors.fill: parent
-                    anchors.margins: 20
-                    clip: true
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.leftMargin: 20
+                    anchors.rightMargin: 20
+                    anchors.verticalCenter: parent.verticalCenter
+                    height: Math.max(52, Math.round(font.pixelSize * 1.45))
+                    clip: false
                     color: "#1b1814"
                     font.pixelSize: 34
                     selectByMouse: true

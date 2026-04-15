@@ -41,6 +41,7 @@ Rectangle {
     property string articleStatusText: "Pick an article to open the reader."
     property string errorText: ""
     property int articleFontSize: 38
+    property int articlePageInset: 18
     property int pagePadding: 26
     property int columnGap: 24
     property var articlePages: []
@@ -49,10 +50,21 @@ Rectangle {
     property int searchResultsPage: 0
     property int resultsPerPage: wideLayout ? 4 : 3
     property var fontSizeOptions: [
-        { label: "Compact", value: 34, note: "Tighter pages" },
-        { label: "Comfort", value: 38, note: "Default" },
-        { label: "Large", value: 42, note: "Easier reading" },
-        { label: "Max", value: 46, note: "Largest type" }
+        { label: "Small", value: 34 },
+        { label: "Medium", value: 38 },
+        { label: "Large", value: 42 },
+        { label: "XL", value: 46 }
+    ]
+    property var pageInsetOptions: [
+        { label: "Wide", value: 14 },
+        { label: "Balanced", value: 18 },
+        { label: "Narrow", value: 26 }
+    ]
+    property var languageOptions: [
+        { label: "EN", value: "en" },
+        { label: "DE", value: "de" },
+        { label: "ES", value: "es" },
+        { label: "FR", value: "fr" }
     ]
 
     function dismissKeyboard() {
@@ -67,25 +79,105 @@ Rectangle {
         paginateTimer.restart();
     }
 
+    function joinChunks(chunks, startIndex, endIndex) {
+        return chunks.slice(startIndex, endIndex + 1).join("\n\n");
+    }
+
+    function textFitsViewport(text) {
+        articlePageMeasure.text = text;
+        return articlePageMeasure.contentHeight <= articlePageViewport.height + 2;
+    }
+
+    function buildArticleChunks() {
+        var mergedText;
+        var paragraphs;
+        var estimate;
+        var chunkLength;
+        var chunks = [];
+        var index;
+        var parts;
+        var partIndex;
+
+        if (!currentArticle) {
+            return [];
+        }
+
+        mergedText = Pagination.mergeSummaryAndBody(currentArticle.summaryText, currentArticle.bodyText);
+        paragraphs = Pagination.splitParagraphs(mergedText);
+        estimate = Pagination.estimateCharsPerPage(articlePageViewport.width, articlePageViewport.height, articleFontSize);
+        chunkLength = Math.max(120, Math.floor(estimate * 0.42));
+
+        for (index = 0; index < paragraphs.length; index += 1) {
+            parts = Pagination.splitLongParagraph(paragraphs[index], chunkLength);
+            for (partIndex = 0; partIndex < parts.length; partIndex += 1) {
+                if (parts[partIndex]) {
+                    chunks.push(parts[partIndex]);
+                }
+            }
+        }
+
+        return chunks;
+    }
+
     function rebuildArticlePages() {
+        var chunks;
+        var pages;
+        var index;
+        var low;
+        var high;
+        var best;
+        var mid;
+        var candidate;
+        var reducedLength;
+        var replacements;
+
         if (!currentArticle || articlePageViewport.width <= 0 || articlePageViewport.height <= 0) {
             articlePages = [];
             articlePageIndex = 0;
             return;
         }
 
-        articlePages = Pagination.paginateArticle(
-            currentArticle.summaryText,
-            currentArticle.bodyText,
-            articlePageViewport.width,
-            articlePageViewport.height,
-            articleFontSize
-        );
+        chunks = buildArticleChunks();
+        pages = [];
+        index = 0;
 
-        if (!articlePages.length) {
-            articlePages = [currentArticle.summaryText || currentArticle.bodyText || ""];
+        while (index < chunks.length) {
+            low = index;
+            high = chunks.length - 1;
+            best = -1;
+
+            while (low <= high) {
+                mid = Math.floor((low + high) / 2);
+                candidate = joinChunks(chunks, index, mid);
+
+                if (textFitsViewport(candidate)) {
+                    best = mid;
+                    low = mid + 1;
+                } else {
+                    high = mid - 1;
+                }
+            }
+
+            if (best < index) {
+                reducedLength = Math.max(80, Math.floor(chunks[index].length * 0.55));
+                replacements = Pagination.splitLongParagraph(chunks[index], reducedLength);
+
+                if (replacements.length <= 1) {
+                    pages.push(chunks[index]);
+                    index += 1;
+                } else {
+                    chunks = chunks.slice(0, index).concat(replacements, chunks.slice(index + 1));
+                }
+
+                continue;
+            }
+
+            pages.push(joinChunks(chunks, index, best));
+            index = best + 1;
         }
 
+        articlePageMeasure.text = "";
+        articlePages = pages.length ? pages : [currentArticle.summaryText || currentArticle.bodyText || ""];
         articlePageIndex = Math.max(0, Math.min(articlePageIndex, articlePages.length - 1));
     }
 
@@ -99,6 +191,29 @@ Rectangle {
         articleFontSize = clamped;
         store.setArticleFontSize(clamped);
         schedulePagination();
+    }
+
+    function setArticlePageInset(nextInset) {
+        var clamped = Math.max(12, Math.min(32, nextInset));
+
+        if (clamped === articlePageInset) {
+            return;
+        }
+
+        articlePageInset = clamped;
+        store.setArticlePageInset(clamped);
+        schedulePagination();
+    }
+
+    function setCurrentLanguage(nextLanguage) {
+        var normalized = (nextLanguage || "en").toLowerCase();
+
+        if (!normalized || normalized === currentLanguage) {
+            return;
+        }
+
+        currentLanguage = normalized;
+        store.setLanguage(normalized);
     }
 
     function stepArticlePage(delta) {
@@ -119,6 +234,7 @@ Rectangle {
         recentSearches = store.getRecentSearches();
         recentArticles = store.getRecentArticles();
         articleFontSize = store.getArticleFontSize();
+        articlePageInset = store.getArticlePageInset();
         schedulePagination();
     }
 
@@ -133,10 +249,10 @@ Rectangle {
         };
     }
 
-    function searchHistoryEntry(queryText) {
+    function searchHistoryEntry(queryText, languageValue) {
         return {
             query: queryText,
-            language: currentLanguage,
+            language: languageValue || currentLanguage,
             openedAt: Date.now()
         };
     }
@@ -147,7 +263,7 @@ Rectangle {
         browseSection = "search";
         searchStatusText = statusText;
         errorText = "";
-        recentSearches = store.recordRecentSearch(searchHistoryEntry(queryText));
+        recentSearches = store.recordRecentSearch(searchHistoryEntry(queryText, currentLanguage));
         store.setLastQuery(queryText);
         searchQuery = queryText;
         articleFocused = false;
@@ -166,12 +282,17 @@ Rectangle {
         }
     }
 
-    function performSearch(rawQuery, forceRefresh) {
+    function performSearch(rawQuery, forceRefresh, languageOverride) {
         var trimmed = (rawQuery || "").trim();
+        var targetLanguage = (languageOverride || currentLanguage || "en").toLowerCase();
         var searchKey;
         var cachedEntry;
 
         dismissKeyboard();
+
+        if (targetLanguage !== currentLanguage) {
+            setCurrentLanguage(targetLanguage);
+        }
 
         if (!trimmed) {
             searchStatusText = "Enter a title or topic to search.";
@@ -180,7 +301,7 @@ Rectangle {
             return;
         }
 
-        searchKey = Cache.makeCacheKey("search", currentLanguage, trimmed);
+        searchKey = Cache.makeCacheKey("search", targetLanguage, trimmed);
         cachedEntry = store.getCacheEntry("search", searchKey);
 
         if (!forceRefresh && Cache.isFresh(cachedEntry, Cache.SEARCH_TTL_MS)) {
@@ -194,10 +315,11 @@ Rectangle {
 
         Wikipedia.search(
             trimmed,
-            currentLanguage,
+            targetLanguage,
             {},
             function (results) {
                 searchBusy = false;
+                currentLanguage = targetLanguage;
                 store.putCacheEntry("search", searchKey, Cache.createEntry(results));
                 applySearchResults(
                     results,
@@ -208,6 +330,7 @@ Rectangle {
             function (error) {
                 searchBusy = false;
                 if (cachedEntry) {
+                    currentLanguage = targetLanguage;
                     applySearchResults(Cache.unwrap(cachedEntry), "Offline. Showing cached results for \"" + trimmed + "\".", trimmed);
                     return;
                 }
@@ -219,18 +342,23 @@ Rectangle {
         );
     }
 
-    function openArticle(rawTitle, forceRefresh) {
+    function openArticle(rawTitle, forceRefresh, languageOverride) {
         var requestedTitle = (rawTitle || "").trim();
+        var targetLanguage = (languageOverride || currentLanguage || "en").toLowerCase();
         var cacheKey;
         var cachedEntry;
 
         dismissKeyboard();
 
+        if (targetLanguage !== currentLanguage) {
+            setCurrentLanguage(targetLanguage);
+        }
+
         if (!requestedTitle) {
             return;
         }
 
-        cacheKey = Cache.makeCacheKey("article", currentLanguage, requestedTitle);
+        cacheKey = Cache.makeCacheKey("article", targetLanguage, requestedTitle);
         cachedEntry = store.getCacheEntry("article", cacheKey);
 
         if (!forceRefresh && Cache.isFresh(cachedEntry, Cache.ARTICLE_TTL_MS)) {
@@ -244,14 +372,15 @@ Rectangle {
 
         Wikipedia.loadArticle(
             requestedTitle,
-            currentLanguage,
+            targetLanguage,
             {},
             function (article) {
                 var canonicalKey;
 
                 articleBusy = false;
+                currentLanguage = targetLanguage;
                 store.putCacheEntry("article", cacheKey, Cache.createEntry(article, article.fetchedAt));
-                canonicalKey = Cache.makeCacheKey("article", currentLanguage, article.canonicalTitle || requestedTitle);
+                canonicalKey = Cache.makeCacheKey("article", targetLanguage, article.canonicalTitle || requestedTitle);
                 if (canonicalKey !== cacheKey) {
                     store.putCacheEntry("article", canonicalKey, Cache.createEntry(article, article.fetchedAt));
                 }
@@ -260,6 +389,7 @@ Rectangle {
             function (error) {
                 articleBusy = false;
                 if (cachedEntry) {
+                    currentLanguage = targetLanguage;
                     applyArticle(Cache.markPayloadFromCache(Cache.unwrap(cachedEntry), true), "Offline. Showing cached article.", true);
                     return;
                 }
@@ -282,6 +412,7 @@ Rectangle {
     onHeightChanged: schedulePagination()
     onCurrentArticleChanged: schedulePagination()
     onArticleFontSizeChanged: schedulePagination()
+    onArticlePageInsetChanged: schedulePagination()
 
     Timer {
         id: paginateTimer
@@ -360,7 +491,7 @@ Rectangle {
 
                     Text {
                         width: parent.width
-                        text: "Built for AppLoad on reMarkable: explicit search, quiet pages, and no in-app vertical scrolling."
+                        text: "Search and read."
                         color: root.mutedInk
                         font.pixelSize: 24
                         wrapMode: Text.Wrap
@@ -486,7 +617,7 @@ Rectangle {
                                     Text {
                                         visible: !(root.searchResults && root.searchResults.length)
                                         width: parent.width
-                                        text: "Run a search to fill this shelf. Results stay paged so the device does less full-screen refreshing."
+                                        text: "Run a search to see matching articles."
                                         color: root.mutedInk
                                         font.pixelSize: 22
                                         wrapMode: Text.Wrap
@@ -593,7 +724,7 @@ Rectangle {
                                 displayLimit: root.wideLayout ? 3 : 2
                                 surfaceColor: root.paperPanel
                                 outlineColor: root.lineInk
-                                onItemSelected: root.performSearch(item.query, false)
+                                onItemSelected: root.performSearch(item.query, false, item.language)
                             }
 
                             HistorySection {
@@ -604,7 +735,7 @@ Rectangle {
                                 displayLimit: root.wideLayout ? 3 : 2
                                 surfaceColor: root.paperPanel
                                 outlineColor: root.lineInk
-                                onItemSelected: root.openArticle(item.canonicalTitle || item.title, false)
+                                onItemSelected: root.openArticle(item.canonicalTitle || item.title, false, item.language)
                             }
                         }
                     }
@@ -630,7 +761,7 @@ Rectangle {
 
                             Text {
                                 width: parent.width
-                                text: "Typography comes first. Pick a reading scale, then the reader repaginates the article."
+                                text: "Reader"
                                 color: root.ink
                                 font.pixelSize: 24
                                 wrapMode: Text.Wrap
@@ -652,52 +783,82 @@ Rectangle {
                                 }
                             }
 
+                            Text {
+                                width: parent.width
+                                text: "Page width"
+                                color: root.mutedInk
+                                font.pixelSize: 18
+                                font.bold: true
+                                font.letterSpacing: 2.0
+                            }
+
+                            Flow {
+                                width: parent.width
+                                spacing: 10
+
+                                Repeater {
+                                    model: root.pageInsetOptions
+
+                                    delegate: InkButton {
+                                        label: modelData.label
+                                        minimumWidth: root.wideLayout ? 146 : 128
+                                        emphasized: root.articlePageInset === modelData.value
+                                        onClicked: root.setArticlePageInset(modelData.value)
+                                    }
+                                }
+                            }
+
+                            Text {
+                                width: parent.width
+                                text: "Language"
+                                color: root.mutedInk
+                                font.pixelSize: 18
+                                font.bold: true
+                                font.letterSpacing: 2.0
+                            }
+
+                            Flow {
+                                width: parent.width
+                                spacing: 10
+
+                                Repeater {
+                                    model: root.languageOptions
+
+                                    delegate: InkButton {
+                                        label: modelData.label
+                                        minimumWidth: 92
+                                        emphasized: root.currentLanguage === modelData.value
+                                        onClicked: root.setCurrentLanguage(modelData.value)
+                                    }
+                                }
+                            }
+
                             Rectangle {
                                 width: parent.width
-                                height: root.wideLayout ? 220 : 200
+                                implicitHeight: previewText.implicitHeight + root.articlePageInset * 2 + 48
+                                height: implicitHeight
                                 radius: 30
                                 color: root.paperPanel
                                 border.width: 1
                                 border.color: root.lineInk
 
                                 Text {
+                                    id: previewText
+
                                     anchors.fill: parent
-                                    anchors.margins: 24
-                                    text: "Preview text should feel like a printed page instead of a web view. The reader keeps article content paged so the device does fewer ugly refreshes."
+                                    anchors.margins: root.articlePageInset + 10
+                                    text: "A quieter page makes reading easier."
                                     color: root.ink
-                                    font.pixelSize: Math.max(30, root.articleFontSize - 2)
+                                    font.pixelSize: root.articleFontSize
                                     wrapMode: Text.Wrap
-                                    lineHeight: 1.3
+                                    lineHeight: 1.35
                                     lineHeightMode: Text.ProportionalHeight
                                 }
                             }
 
-                            Rectangle {
-                                width: parent.width
-                                height: 1
-                                color: root.lineInk
-                            }
-
                             Text {
                                 width: parent.width
-                                text: "INTERACTION"
-                                color: root.mutedInk
-                                font.pixelSize: 18
-                                font.bold: true
-                                font.letterSpacing: 2.6
-                            }
-
-                            Text {
-                                width: parent.width
-                                text: "AppLoad closes fullscreen apps with a drag from the center-top of the screen toward the middle, so rm-wiki avoids vertical in-app scrolling and keeps reading page-based."
-                                color: root.ink
-                                font.pixelSize: 22
-                                wrapMode: Text.Wrap
-                            }
-
-                            Text {
-                                width: parent.width
-                                text: "Current text size: " + root.articleFontSize + " px"
+                                text: "Type " + root.articleFontSize + " px  •  " + (root.currentLanguage || "en").toUpperCase()
                                 color: root.mutedInk
                                 font.pixelSize: 20
                                 wrapMode: Text.Wrap
@@ -746,7 +907,7 @@ Rectangle {
 
                         Text {
                             width: parent.width
-                            text: "Search for an article, then read it one page at a time. The reader keeps the screen steady so AppLoad gestures stay usable and refresh noise stays low."
+                            text: "Search for an article, then read one page at a time."
                             color: root.mutedInk
                             font.pixelSize: 26
                             horizontalAlignment: Text.AlignHCenter
@@ -764,8 +925,10 @@ Rectangle {
                     Item {
                         id: headerBlock
 
-                        width: parent.width
-                        height: headerTopRow.implicitHeight + articleTitleBlock.implicitHeight + 18
+                        anchors.top: parent.top
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        height: headerTopRow.implicitHeight + articleTitleBlock.implicitHeight + 16
 
                         Column {
                             id: articleTitleBlock
@@ -780,7 +943,7 @@ Rectangle {
                                 width: parent.width
                                 text: root.currentArticle ? root.currentArticle.title : ""
                                 color: root.ink
-                                font.pixelSize: root.wideLayout ? 58 : 48
+                                font.pixelSize: root.wideLayout ? 54 : 44
                                 font.bold: true
                                 wrapMode: Text.Wrap
                             }
@@ -790,7 +953,7 @@ Rectangle {
                                 width: parent.width
                                 text: root.currentArticle ? root.currentArticle.description : ""
                                 color: root.mutedInk
-                                font.pixelSize: 25
+                                font.pixelSize: 23
                                 wrapMode: Text.Wrap
                             }
                         }
@@ -830,9 +993,12 @@ Rectangle {
                     Rectangle {
                         id: readerCard
 
-                        y: headerBlock.height + 16
-                        width: parent.width
-                        height: Math.max(260, parent.height - headerBlock.height - footerControls.height - 28)
+                        anchors.top: headerBlock.bottom
+                        anchors.topMargin: 12
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.bottom: footerControls.top
+                        anchors.bottomMargin: 16
                         radius: 34
                         color: root.paperInset
                         border.width: 1
@@ -842,7 +1008,7 @@ Rectangle {
                             id: articlePageViewport
 
                             anchors.fill: parent
-                            anchors.margins: 26
+                            anchors.margins: root.articlePageInset
 
                             Text {
                                 anchors.fill: parent
@@ -860,8 +1026,9 @@ Rectangle {
                     Row {
                         id: footerControls
 
-                        width: parent.width
-                        y: parent.height - implicitHeight
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.bottom: parent.bottom
                         spacing: 10
 
                         InkButton {
@@ -915,6 +1082,20 @@ Rectangle {
                                 font.bold: true
                             }
                         }
+                    }
+
+                    Text {
+                        id: articlePageMeasure
+
+                        x: -100000
+                        width: articlePageViewport.width
+                        opacity: 0
+                        text: ""
+                        color: root.ink
+                        font.pixelSize: root.articleFontSize
+                        wrapMode: Text.Wrap
+                        lineHeight: 1.35
+                        lineHeightMode: Text.ProportionalHeight
                     }
                 }
             }

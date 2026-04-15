@@ -2,8 +2,12 @@ import QtQuick 2.15
 import Qt.labs.settings 1.1
 import "../js/history.js" as History
 
-QtObject {
+Item {
     id: root
+
+    width: 0
+    height: 0
+    visible: false
 
     property int maxRecentEntries: 50
     property var cacheEntries: ({})
@@ -18,6 +22,7 @@ QtObject {
         property string lastQuery: ""
         property int articleFontSize: 38
         property bool articleFontSizeConfigured: false
+        property int articlePageInset: 18
         property string recentSearchesJson: "[]"
         property string recentArticlesJson: "[]"
     }
@@ -69,6 +74,14 @@ QtObject {
     function setArticleFontSize(value) {
         settings.articleFontSize = value > 0 ? value : 38;
         settings.articleFontSizeConfigured = true;
+    }
+
+    function getArticlePageInset() {
+        return settings.articlePageInset > 0 ? settings.articlePageInset : 18;
+    }
+
+    function setArticlePageInset(value) {
+        settings.articlePageInset = value > 0 ? value : 18;
     }
 
     function getCacheEntry(namespaceName, entryKey) {
