@@ -12,26 +12,27 @@ Rectangle {
     signal clicked()
 
     radius: implicitHeight / 2
-    implicitWidth: Math.max(minimumWidth, labelText.implicitWidth + 34)
-    implicitHeight: 54
-    color: disabled ? "#ded6c7" : mouseArea.pressed ? (emphasized ? "#201d18" : "#ece4d6") : emphasized ? "#151310" : "#f8f2e6"
+    implicitWidth: Math.max(minimumWidth, labelText.implicitWidth + 38)
+    implicitHeight: 58
+    color: disabled ? "#ddd4c7" : mouseArea.pressed ? (emphasized ? "#26211a" : "#ece3d6") : emphasized ? "#1c1813" : "#f6efe3"
     border.width: 1
-    border.color: emphasized ? "#151310" : "#c8bfaf"
+    border.color: emphasized ? "#1c1813" : "#cdc2b1"
 
     Text {
         id: labelText
         anchors.centerIn: parent
         text: root.label
-        color: root.emphasized ? "#f8f2e6" : "#181815"
+        color: root.emphasized ? "#f8f2e6" : "#1b1814"
         font.pixelSize: root.pixelSize
         font.bold: true
-        font.letterSpacing: 0.4
+        font.letterSpacing: 0.2
     }
 
     MouseArea {
         id: mouseArea
         anchors.fill: parent
         enabled: !root.disabled
+        onPressed: root.forceActiveFocus()
         onClicked: root.clicked()
     }
 }

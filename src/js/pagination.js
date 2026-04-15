@@ -1,4 +1,4 @@
-var DEFAULT_FONT_SIZE = 34;
+var DEFAULT_FONT_SIZE = 38;
 
 function safeString(value) {
   if (value === null || value === undefined) {

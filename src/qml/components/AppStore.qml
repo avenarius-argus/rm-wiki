@@ -16,7 +16,8 @@ QtObject {
         category: "rm-wiki"
         property string language: "en"
         property string lastQuery: ""
-        property int articleFontSize: 34
+        property int articleFontSize: 38
+        property bool articleFontSizeConfigured: false
         property string recentSearchesJson: "[]"
         property string recentArticlesJson: "[]"
     }
@@ -58,11 +59,16 @@ QtObject {
     }
 
     function getArticleFontSize() {
-        return settings.articleFontSize > 0 ? settings.articleFontSize : 34;
+        if (!settings.articleFontSizeConfigured) {
+            return 38;
+        }
+
+        return settings.articleFontSize > 0 ? settings.articleFontSize : 38;
     }
 
     function setArticleFontSize(value) {
-        settings.articleFontSize = value > 0 ? value : 34;
+        settings.articleFontSize = value > 0 ? value : 38;
+        settings.articleFontSizeConfigured = true;
     }
 
     function getCacheEntry(namespaceName, entryKey) {

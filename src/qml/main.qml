@@ -20,12 +20,12 @@ Rectangle {
     }
 
     property color paperBase: "#e8decc"
-    property color paperPanel: "#f6efe2"
-    property color paperInset: "#fbf6eb"
-    property color ink: "#171512"
-    property color mutedInk: "#6b6254"
-    property color lineInk: "#d0c6b6"
-    property color accent: "#1b1813"
+    property color paperPanel: "#f7f0e4"
+    property color paperInset: "#fcf7ee"
+    property color ink: "#1b1814"
+    property color mutedInk: "#6f6658"
+    property color lineInk: "#d7ccb9"
+    property color accent: "#211c16"
 
     property bool wideLayout: Math.min(width, height) >= 1200
     property bool articleFocused: false
@@ -40,17 +40,24 @@ Rectangle {
     property string searchStatusText: "Search for a subject, person, place, or event."
     property string articleStatusText: "Pick an article to open the reader."
     property string errorText: ""
-    property int articleFontSize: 34
+    property int articleFontSize: 38
     property int pagePadding: 26
     property int columnGap: 24
     property var articlePages: []
     property int articlePageIndex: 0
     property string browseSection: "search"
     property int searchResultsPage: 0
+    property int resultsPerPage: wideLayout ? 4 : 3
+    property var fontSizeOptions: [
+        { label: "Compact", value: 34, note: "Tighter pages" },
+        { label: "Comfort", value: 38, note: "Default" },
+        { label: "Large", value: 42, note: "Easier reading" },
+        { label: "Max", value: 46, note: "Largest type" }
+    ]
 
     function dismissKeyboard() {
         searchField.dismissKeyboard();
-        focus = true;
+        stage.forceActiveFocus();
         if (Qt.inputMethod && Qt.inputMethod.hide) {
             Qt.inputMethod.hide();
         }
@@ -83,7 +90,7 @@ Rectangle {
     }
 
     function setArticleFontSize(nextSize) {
-        var clamped = Math.max(28, Math.min(44, nextSize));
+        var clamped = Math.max(34, Math.min(46, nextSize));
 
         if (clamped === articleFontSize) {
             return;
@@ -96,6 +103,14 @@ Rectangle {
 
     function stepArticlePage(delta) {
         articlePageIndex = Math.max(0, Math.min(articlePages.length - 1, articlePageIndex + delta));
+    }
+
+    function openTypographySettings() {
+        dismissKeyboard();
+        browseSection = "settings";
+        if (!wideLayout) {
+            articleFocused = false;
+        }
     }
 
     function hydrate() {
@@ -278,6 +293,7 @@ Rectangle {
 
     TapHandler {
         target: null
+        enabled: searchField.editing
         onTapped: root.dismissKeyboard()
     }
 
@@ -292,7 +308,7 @@ Rectangle {
         anchors.left: parent.left
         anchors.right: parent.right
         height: parent.height * 0.28
-        color: "#efe5d5"
+        color: "#f1e7d9"
         opacity: 0.55
     }
 
@@ -301,6 +317,7 @@ Rectangle {
 
         anchors.fill: parent
         anchors.margins: root.pagePadding
+        focus: true
 
         PanelSurface {
             id: browsePane
@@ -325,28 +342,35 @@ Rectangle {
 
                     Text {
                         width: parent.width
-                        text: "RM WIKI"
+                        text: "WIKIPEDIA"
                         color: root.mutedInk
                         font.pixelSize: 18
                         font.bold: true
-                        font.letterSpacing: 3.2
+                        font.letterSpacing: 2.8
                     }
 
                     Text {
                         width: parent.width
-                        text: "Wikipedia,\npared down for paper."
+                        text: "Wikipedia\nfor paper."
                         color: root.ink
-                        font.pixelSize: root.wideLayout ? 54 : 46
+                        font.pixelSize: root.wideLayout ? 58 : 48
                         font.bold: true
                         wrapMode: Text.Wrap
                     }
 
                     Text {
                         width: parent.width
-                        text: "No in-app scrolling. Search, switch views, and read in pages."
+                        text: "Built for AppLoad on reMarkable: explicit search, quiet pages, and no in-app vertical scrolling."
                         color: root.mutedInk
-                        font.pixelSize: 22
+                        font.pixelSize: 24
                         wrapMode: Text.Wrap
+                    }
+
+                    Rectangle {
+                        width: parent.width
+                        height: 1
+                        color: root.lineInk
+                        opacity: 0.9
                     }
 
                     SearchField {
@@ -367,33 +391,29 @@ Rectangle {
 
                         InkButton {
                             label: "Search"
-                            minimumWidth: 120
+                            minimumWidth: 126
                             emphasized: root.browseSection === "search"
-                            onClicked: root.browseSection = "search"
+                            onClicked: {
+                                root.dismissKeyboard();
+                                root.browseSection = "search";
+                            }
                         }
 
                         InkButton {
                             label: "Library"
-                            minimumWidth: 120
+                            minimumWidth: 126
                             emphasized: root.browseSection === "library"
-                            onClicked: root.browseSection = "library"
-                        }
-
-                        Item {
-                            width: 16
-                            height: 1
-                        }
-
-                        InkButton {
-                            label: "A-"
-                            minimumWidth: 72
-                            onClicked: root.setArticleFontSize(root.articleFontSize - 2)
+                            onClicked: {
+                                root.dismissKeyboard();
+                                root.browseSection = "library";
+                            }
                         }
 
                         InkButton {
-                            label: "A+"
-                            minimumWidth: 72
-                            onClicked: root.setArticleFontSize(root.articleFontSize + 2)
+                            label: "Settings"
+                            minimumWidth: 132
+                            emphasized: root.browseSection === "settings"
+                            onClicked: root.openTypographySettings()
                         }
                     }
                 }
@@ -435,7 +455,7 @@ Rectangle {
                                     width: parent.width
                                     text: root.searchStatusText
                                     color: root.ink
-                                    font.pixelSize: 24
+                                    font.pixelSize: 26
                                     wrapMode: Text.Wrap
                                 }
 
@@ -466,14 +486,14 @@ Rectangle {
                                     Text {
                                         visible: !(root.searchResults && root.searchResults.length)
                                         width: parent.width
-                                        text: "Run a search to fill this shelf. Results are shown in pages instead of a scroll list."
+                                        text: "Run a search to fill this shelf. Results stay paged so the device does less full-screen refreshing."
                                         color: root.mutedInk
                                         font.pixelSize: 22
                                         wrapMode: Text.Wrap
                                     }
 
                                     Repeater {
-                                        model: root.searchResults ? root.searchResults.slice(root.searchResultsPage * 4, root.searchResultsPage * 4 + 4) : []
+                                        model: root.searchResults ? root.searchResults.slice(root.searchResultsPage * root.resultsPerPage, root.searchResultsPage * root.resultsPerPage + root.resultsPerPage) : []
 
                                         delegate: ResultTile {
                                             width: resultsViewport.width
@@ -514,7 +534,7 @@ Rectangle {
                                         id: searchPageLabel
 
                                         anchors.centerIn: parent
-                                        text: "Page " + (root.searchResults.length ? root.searchResultsPage + 1 : 0) + " of " + Math.max(1, Math.ceil(root.searchResults.length / 4))
+                                        text: "Page " + (root.searchResults.length ? root.searchResultsPage + 1 : 0) + " of " + Math.max(1, Math.ceil(root.searchResults.length / root.resultsPerPage))
                                         color: root.ink
                                         font.pixelSize: 20
                                         font.bold: true
@@ -524,7 +544,7 @@ Rectangle {
                                 InkButton {
                                     label: "Next"
                                     minimumWidth: 98
-                                    disabled: !root.searchResults.length || (root.searchResultsPage + 1) * 4 >= root.searchResults.length
+                                    disabled: !root.searchResults.length || (root.searchResultsPage + 1) * root.resultsPerPage >= root.searchResults.length
                                     onClicked: root.searchResultsPage = root.searchResultsPage + 1
                                 }
                             }
@@ -552,10 +572,16 @@ Rectangle {
 
                             Text {
                                 width: parent.width
-                                text: "A static home screen for the things you touched recently."
+                                text: "A fixed home surface for the things you touched recently."
                                 color: root.ink
                                 font.pixelSize: 22
                                 wrapMode: Text.Wrap
+                            }
+
+                            Rectangle {
+                                width: parent.width
+                                height: 1
+                                color: root.lineInk
                             }
 
                             HistorySection {
@@ -564,7 +590,7 @@ Rectangle {
                                 emptyText: "Your last searches will live here."
                                 items: root.recentSearches
                                 searchMode: true
-                                displayLimit: 3
+                                displayLimit: root.wideLayout ? 3 : 2
                                 surfaceColor: root.paperPanel
                                 outlineColor: root.lineInk
                                 onItemSelected: root.performSearch(item.query, false)
@@ -575,10 +601,106 @@ Rectangle {
                                 heading: "Recent articles"
                                 emptyText: "Open an article and it will stay close at hand."
                                 items: root.recentArticles
-                                displayLimit: 3
+                                displayLimit: root.wideLayout ? 3 : 2
                                 surfaceColor: root.paperPanel
                                 outlineColor: root.lineInk
                                 onItemSelected: root.openArticle(item.canonicalTitle || item.title, false)
+                            }
+                        }
+                    }
+
+                    PanelSurface {
+                        anchors.fill: parent
+                        visible: root.browseSection === "settings"
+                        surfaceColor: root.paperInset
+                        outlineColor: root.lineInk
+
+                        Column {
+                            width: parent.width
+                            spacing: 16
+
+                            Text {
+                                width: parent.width
+                                text: "SETTINGS"
+                                color: root.mutedInk
+                                font.pixelSize: 18
+                                font.bold: true
+                                font.letterSpacing: 2.6
+                            }
+
+                            Text {
+                                width: parent.width
+                                text: "Typography comes first. Pick a reading scale, then the reader repaginates the article."
+                                color: root.ink
+                                font.pixelSize: 24
+                                wrapMode: Text.Wrap
+                            }
+
+                            Flow {
+                                width: parent.width
+                                spacing: 10
+
+                                Repeater {
+                                    model: root.fontSizeOptions
+
+                                    delegate: InkButton {
+                                        label: modelData.label
+                                        minimumWidth: root.wideLayout ? 146 : 128
+                                        emphasized: root.articleFontSize === modelData.value
+                                        onClicked: root.setArticleFontSize(modelData.value)
+                                    }
+                                }
+                            }
+
+                            Rectangle {
+                                width: parent.width
+                                height: root.wideLayout ? 220 : 200
+                                radius: 30
+                                color: root.paperPanel
+                                border.width: 1
+                                border.color: root.lineInk
+
+                                Text {
+                                    anchors.fill: parent
+                                    anchors.margins: 24
+                                    text: "Preview text should feel like a printed page instead of a web view. The reader keeps article content paged so the device does fewer ugly refreshes."
+                                    color: root.ink
+                                    font.pixelSize: Math.max(30, root.articleFontSize - 2)
+                                    wrapMode: Text.Wrap
+                                    lineHeight: 1.3
+                                    lineHeightMode: Text.ProportionalHeight
+                                }
+                            }
+
+                            Rectangle {
+                                width: parent.width
+                                height: 1
+                                color: root.lineInk
+                            }
+
+                            Text {
+                                width: parent.width
+                                text: "INTERACTION"
+                                color: root.mutedInk
+                                font.pixelSize: 18
+                                font.bold: true
+                                font.letterSpacing: 2.6
+                            }
+
+                            Text {
+                                width: parent.width
+                                text: "AppLoad closes fullscreen apps with a drag from the center-top of the screen toward the middle, so rm-wiki avoids vertical in-app scrolling and keeps reading page-based."
+                                color: root.ink
+                                font.pixelSize: 22
+                                wrapMode: Text.Wrap
+                            }
+
+                            Text {
+                                width: parent.width
+                                text: "Current text size: " + root.articleFontSize + " px"
+                                color: root.mutedInk
+                                font.pixelSize: 20
+                                wrapMode: Text.Wrap
                             }
                         }
                     }
@@ -616,7 +738,7 @@ Rectangle {
                             width: parent.width
                             text: "A quiet reader, not a scrolling feed."
                             color: root.ink
-                            font.pixelSize: root.wideLayout ? 52 : 44
+                            font.pixelSize: root.wideLayout ? 54 : 46
                             font.bold: true
                             horizontalAlignment: Text.AlignHCenter
                             wrapMode: Text.Wrap
@@ -624,7 +746,7 @@ Rectangle {
 
                         Text {
                             width: parent.width
-                            text: "Search for an article, then read it one page at a time. The reader keeps the screen steady and the typography generous."
+                            text: "Search for an article, then read it one page at a time. The reader keeps the screen steady so AppLoad gestures stay usable and refresh noise stays low."
                             color: root.mutedInk
                             font.pixelSize: 26
                             horizontalAlignment: Text.AlignHCenter
@@ -658,7 +780,7 @@ Rectangle {
                                 width: parent.width
                                 text: root.currentArticle ? root.currentArticle.title : ""
                                 color: root.ink
-                                font.pixelSize: root.wideLayout ? 54 : 46
+                                font.pixelSize: root.wideLayout ? 58 : 48
                                 font.bold: true
                                 wrapMode: Text.Wrap
                             }
@@ -668,7 +790,7 @@ Rectangle {
                                 width: parent.width
                                 text: root.currentArticle ? root.currentArticle.description : ""
                                 color: root.mutedInk
-                                font.pixelSize: 24
+                                font.pixelSize: 25
                                 wrapMode: Text.Wrap
                             }
                         }
@@ -687,15 +809,9 @@ Rectangle {
                             }
 
                             InkButton {
-                                label: "A-"
-                                minimumWidth: 74
-                                onClicked: root.setArticleFontSize(root.articleFontSize - 2)
-                            }
-
-                            InkButton {
-                                label: "A+"
-                                minimumWidth: 74
-                                onClicked: root.setArticleFontSize(root.articleFontSize + 2)
+                                label: "Type"
+                                minimumWidth: 110
+                                onClicked: root.openTypographySettings()
                             }
 
                             InkButton {
@@ -734,7 +850,7 @@ Rectangle {
                                 color: root.ink
                                 font.pixelSize: root.articleFontSize
                                 wrapMode: Text.Wrap
-                                lineHeight: 1.32
+                                lineHeight: 1.35
                                 lineHeightMode: Text.ProportionalHeight
                                 clip: true
                             }
@@ -750,7 +866,7 @@ Rectangle {
 
                         InkButton {
                             label: "Previous"
-                            minimumWidth: 132
+                            minimumWidth: 138
                             disabled: root.articlePageIndex <= 0
                             onClicked: root.stepArticlePage(-1)
                         }
@@ -769,14 +885,14 @@ Rectangle {
                                 anchors.centerIn: parent
                                 text: "Page " + (root.articlePages.length ? root.articlePageIndex + 1 : 0) + " of " + root.articlePages.length
                                 color: root.ink
-                                font.pixelSize: 21
+                                font.pixelSize: 20
                                 font.bold: true
                             }
                         }
 
                         InkButton {
                             label: "Next"
-                            minimumWidth: 112
+                            minimumWidth: 124
                             disabled: !root.articlePages.length || root.articlePageIndex >= root.articlePages.length - 1
                             onClicked: root.stepArticlePage(1)
                         }
@@ -795,7 +911,7 @@ Rectangle {
                                 anchors.centerIn: parent
                                 text: root.currentArticle && root.currentArticle.fromCache ? (root.currentArticle.staleCache ? "Cached copy" : "Cached") : "Live article"
                                 color: root.mutedInk
-                                font.pixelSize: 20
+                                font.pixelSize: 19
                                 font.bold: true
                             }
                         }
