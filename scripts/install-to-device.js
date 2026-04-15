@@ -13,13 +13,44 @@ const {
 const host = process.env.RM_HOST || "10.11.99.1";
 const port = process.env.RM_PORT || "22";
 const user = process.env.RM_USER || "root";
+const password = process.env.RM_PASSWORD || "";
 const remoteAppLoadDir = process.env.RM_APPLOAD_DIR || "/home/root/xovi/exthome/appload";
 const remoteAppDir = `${remoteAppLoadDir}/${APP_ID}`;
 const overwrite = process.env.RM_OVERWRITE === "1";
 const remoteTarget = `${user}@${host}`;
 
+function runCommand(command, args) {
+  if (!password) {
+    return spawnSync(command, args, { encoding: "utf8" });
+  }
+
+  function toTclLiteral(value) {
+    return `{${String(value).replace(/([{}\\])/g, "\\$1")}}`;
+  }
+
+  const commandList = [command, ...args].map(toTclLiteral).join(" ");
+  const expectProgram = [
+    "set timeout 60",
+    `set password ${toTclLiteral(password)}`,
+    `set cmd [list ${commandList}]`,
+    "eval spawn $cmd",
+    "expect {",
+    "  -re {(?i)password:} {",
+    "    send -- \"$password\\r\"",
+    "    exp_continue",
+    "  }",
+    "  eof",
+    "}",
+    "catch wait result",
+    "set exit_status [lindex $result 3]",
+    "exit $exit_status"
+  ].join("\n");
+
+  return spawnSync("expect", ["-c", expectProgram], { encoding: "utf8" });
+}
+
 function runOrExit(command, args) {
-  const result = spawnSync(command, args, { encoding: "utf8" });
+  const result = runCommand(command, args);
 
   if (result.status !== 0) {
     if (result.stdout) {
@@ -50,12 +81,12 @@ runOrExit("ssh", [
   `test -d /home/root/xovi && test -d ${remoteAppLoadDir}`
 ]);
 
-const existing = spawnSync("ssh", [
+const existing = runCommand("ssh", [
   "-p",
   port,
   remoteTarget,
   `test -e ${remoteAppDir}`
-], { encoding: "utf8" });
+]);
 
 if (existing.status === 0 && !overwrite) {
   console.error(`Remote app directory already exists at ${remoteAppDir}. Re-run with RM_OVERWRITE=1 to replace it.`);
@@ -81,4 +112,3 @@ runOrExit("scp", [
 ]);
 
 console.log(`Installed ${APP_ID} to ${remoteTarget}:${remoteAppLoadDir}`);
-

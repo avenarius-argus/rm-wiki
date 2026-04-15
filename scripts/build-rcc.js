@@ -34,6 +34,35 @@ function brewPrefix(formula) {
   return "";
 }
 
+function homeQtCandidates() {
+  const candidates = [];
+  const homeDir = process.env.HOME || "";
+  const qtRoot = homeDir ? path.join(homeDir, "Qt") : "";
+  let entries = [];
+
+  if (!qtRoot || !fs.existsSync(qtRoot)) {
+    return candidates;
+  }
+
+  try {
+    entries = fs.readdirSync(qtRoot, { withFileTypes: true });
+  } catch (_) {
+    return candidates;
+  }
+
+  for (const entry of entries) {
+    if (!entry.isDirectory()) {
+      continue;
+    }
+
+    maybeAddCandidate(candidates, existingExecutable(path.join(qtRoot, entry.name, "macos", "libexec", "rcc")));
+    maybeAddCandidate(candidates, existingExecutable(path.join(qtRoot, entry.name, "macos", "bin", "rcc")));
+    maybeAddCandidate(candidates, existingExecutable(path.join(qtRoot, entry.name, "clang_64", "bin", "rcc")));
+  }
+
+  return candidates;
+}
+
 function findRccBinary() {
   const candidates = [];
   const envCandidate = process.env.RCC_BIN;
@@ -50,6 +79,9 @@ function findRccBinary() {
   maybeAddCandidate(candidates, brewQt ? path.join(brewQt, "libexec", "rcc") : "");
   maybeAddCandidate(candidates, brewQt6 ? path.join(brewQt6, "bin", "rcc") : "");
   maybeAddCandidate(candidates, brewQt6 ? path.join(brewQt6, "libexec", "rcc") : "");
+  for (const candidate of homeQtCandidates()) {
+    maybeAddCandidate(candidates, candidate);
+  }
 
   for (const candidate of candidates) {
     const check = spawnSync(candidate, ["-v"], { encoding: "utf8" });
@@ -83,4 +115,3 @@ if (build.status !== 0) {
 }
 
 console.log(`Built ${RCC_PATH} using ${rccBinary}`);
-
