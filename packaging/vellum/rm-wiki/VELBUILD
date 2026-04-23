@@ -9,10 +9,23 @@ url="https://github.com/avenarius-argus/rm-wiki"
 arch="noarch"
 license="MIT"
 depends="appload !rm1 !rm2"
-source="$url/releases/download/v$pkgver/$pkgname-$pkgver-appload.tar.gz"
-sha512sums="545818b3432aada2ae4f2df6f78e81bebd0efa471936646e312d284c4f1ec7866b644e25fa05ee6491610f4fc42de686a515a35da97082dfc22178d33928133c"
+options="!check !fhs !strip !tracedeps"
+
+source="
+$url/releases/download/v$pkgver/$pkgname-$pkgver-appload.tar.gz
+https://raw.githubusercontent.com/avenarius-argus/rm-wiki/v$pkgver/LICENSE
+"
 
 package() {
     install -dm755 "$pkgdir/home/root/xovi/exthome/appload"
     cp -r "$srcdir/$pkgname" "$pkgdir/home/root/xovi/exthome/appload/$pkgname"
+
+    install -Dm644 "$srcdir"/LICENSE \
+        "$pkgdir"/home/root/.vellum/licenses/$pkgname/LICENSE
+    echo "$url" > "$pkgdir"/home/root/.vellum/licenses/$pkgname/SOURCES
 }
+
+sha512sums='545818b3432aada2ae4f2df6f78e81bebd0efa471936646e312d284c4f1ec7866b644e25fa05ee6491610f4fc42de686a515a35da97082dfc22178d33928133c
+rm-wiki-0.1.0-appload.tar.gz
+685c74a0328eea3ab7729516553e436420c5b7b02b6cf2199d9e3141a8bad5731c783cb33418d557d65638ad6e66e42db89d573c4dbea0e51bbffb8c35576c85
+LICENSE'
