@@ -1,103 +1,115 @@
 # rm-wiki
 
-`rm-wiki` is a Wikipedia reader for reMarkable Paper Pro and Paper Pro Move, packaged as a frontend-only AppLoad app for Xovi.
+`rm-wiki` is a paged Wikipedia reader for reMarkable Paper Pro and Paper Pro Move. It is packaged as a frontend-only AppLoad app for Xovi and designed around paper-device constraints instead of browser conventions.
 
-The project is intentionally not a browser port. It is built around the constraints of paper hardware:
+## Status
 
-- explicit search instead of a live, chatty UI
-- paged reading instead of in-app vertical scrolling
-- large touch targets and persistent typography settings
-- a quiet visual language that fits an e-ink tablet
+This is an early public release. The app is usable for online Wikipedia search and reading, but it is still device-first software under active testing on real hardware.
 
-## Interaction model
+Supported targets:
 
-`rm-wiki` treats articles like documents, not feeds.
+- reMarkable Paper Pro Move
+- reMarkable Paper Pro
+- Xovi with AppLoad
 
-- Search is submit-only.
-- Results are paged instead of scrollable.
-- Articles are paged instead of vertically flicked.
-- Reader type size is persistent and controlled from `Settings`.
+Not supported:
 
-That behavior is deliberate. AppLoad fullscreen apps are closed with a drag from the top-center of the screen toward the middle, so `rm-wiki` avoids vertical in-app scroll surfaces that compete with the launcher gesture.
+- reMarkable 1 or reMarkable 2
+- offline Wikipedia dumps
+- images, infoboxes, tables, editing, sync, or note export
 
-## Current scope
+## Features
 
-V1 is online-first:
+- Explicit Wikipedia search with no live network requests while typing.
+- Paged result lists and paged article reading.
+- Recent searches and recent articles.
+- Local cache fallback when a previously opened article cannot be fetched.
+- Persistent reader type size.
+- Minimal e-ink UI with large touch targets.
 
-- Wikipedia search
-- article loading
-- recent searches
-- recent articles
-- simple local persistence for recents and reading scale
-- in-memory cache fallback during a run
+## Install
 
-Out of scope for now:
+Download the AppLoad archive from the latest GitHub release:
 
-- offline dumps
-- images
-- infobox rendering
-- inline wiki links
-- editing
-- notes export
-- sync
+```bash
+curl -LO https://github.com/avenarius-argus/rm-wiki/releases/download/v0.1.0/rm-wiki-0.1.0-appload.tar.gz
+tar -xzf rm-wiki-0.1.0-appload.tar.gz
+scp -r rm-wiki root@<device-ip>:/home/root/xovi/exthome/appload/
+```
 
-## Project layout
+Restart AppLoad or relaunch the reMarkable UI after copying the directory.
 
-- `src/qml` - AppLoad UI shell and reusable QML components
-- `src/js` - Wikipedia API shaping, cache/history logic, and article pagination
-- `package/appload` - `manifest.json`, icon assets, and compiled `resources.rcc`
-- `scripts` - RCC build, AppLoad packaging, verification, and SSH deployment
-- `tests` - host-side Node tests for normalization, cache/history, package contract, and pagination
+## Package Managers
 
-## Development commands
+The release archive is intentionally shaped as a standard AppLoad directory:
+
+```text
+rm-wiki/
+  manifest.json
+  icon.png
+  resources.rcc
+```
+
+A Vellum package recipe is included at `packaging/vellum/rm-wiki/VELBUILD`. ReManager uses the Vellum package ecosystem, so this recipe can be submitted to the Vellum package repository to make `rm-wiki` available through ReManager-style package installation.
+
+## Development
+
+Requirements:
+
+- Node.js 20 or newer
+- Qt `rcc`
+- A Xovi/AppLoad-enabled Paper Pro or Paper Pro Move for device testing
+
+Run host tests:
 
 ```bash
 npm test
+```
+
+Build and verify the AppLoad package:
+
+```bash
 npm run build-rcc
 npm run package-appload
 npm run verify-package
 ```
 
-## Device deployment
-
-`rm-wiki` expects:
-
-- Developer Mode enabled on the reMarkable
-- SSH access
-- Xovi/AppLoad already installed
-
-Useful environment variables:
+Create release artifacts:
 
 ```bash
-RM_HOST=192.168.8.129
-RM_USER=root
-RM_PASSWORD=your-device-password
-RM_OVERWRITE=1
+npm run release:archive
 ```
 
-Deploy:
+The release command writes:
+
+- `dist/rm-wiki-0.1.0-appload.tar.gz`
+- `dist/rm-wiki-0.1.0-checksums.txt`
+
+## Device Deploy
 
 ```bash
-RM_HOST=192.168.8.129 \
-RM_PASSWORD=your-device-password \
+RM_HOST=<device-ip> \
+RM_USER=root \
+RM_PASSWORD=<device-password> \
 RM_OVERWRITE=1 \
-node scripts/install-to-device.js
+npm run install-to-device
 ```
 
-The installer refuses to deploy a placeholder `resources.rcc`. Build the RCC first.
+The installer refuses to deploy placeholder resources and verifies that Xovi/AppLoad exists on the target device.
 
-## Build notes
+## Project Layout
 
-- The UI is written in QML because reMarkable’s supported graphical path is Qt Quick.
-- This repo builds the AppLoad resource bundle locally with Qt `rcc`.
-- `scripts/build-rcc.js` checks common macOS/Homebrew and `~/Qt/...` install paths.
-- You can override RCC detection with `RCC_BIN=/full/path/to/rcc`.
+- `src/qml` contains the AppLoad UI.
+- `src/js` contains Wikipedia API shaping, cache/history logic, and pagination.
+- `package/appload` contains the source AppLoad package assets.
+- `packaging/vellum` contains package-manager metadata.
+- `scripts` contains build, package, release, and deploy tooling.
+- `tests` contains host-side Node tests.
 
-## Status
+## Contributing
 
-This is active device-first development. The current priorities are:
+Issues and pull requests are welcome. See `CONTRIBUTING.md` before proposing UI, interaction, or packaging changes.
 
-- polish the paper-first interaction model
-- validate behavior on real Paper Pro Move hardware
-- keep the fullscreen AppLoad experience compatible with the device’s exit gesture
-- improve the visual quality until it feels intentional on e-ink
+## License
+
+MIT

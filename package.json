@@ -1,14 +1,23 @@
 {
   "name": "rm-wiki",
   "version": "0.1.0",
-  "private": true,
-  "description": "Wikipedia reader scaffold for reMarkable Paper Pro and Paper Pro Move via Xovi/AppLoad.",
+  "private": false,
+  "description": "Paged Wikipedia reader for reMarkable Paper Pro and Paper Pro Move via Xovi/AppLoad.",
+  "license": "MIT",
+  "homepage": "https://github.com/avenarius-argus/rm-wiki#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/avenarius-argus/rm-wiki.git"
+  },
+  "bugs": {
+    "url": "https://github.com/avenarius-argus/rm-wiki/issues"
+  },
   "scripts": {
     "test": "node --test tests/*.test.js",
     "build-rcc": "node scripts/build-rcc.js",
     "package-appload": "node scripts/package-appload.js",
     "verify-package": "node scripts/verify-package.js",
+    "release:archive": "node scripts/create-release-archive.js",
     "install-to-device": "node scripts/install-to-device.js"
   }
 }
-
