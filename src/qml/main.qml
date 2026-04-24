@@ -17,6 +17,25 @@ Rectangle {
     signal close()
 
     function unloading() {
+        lifecycleClosing = true;
+        abortRequest(activeSearchRequest);
+        abortRequest(activeArticleRequest);
+        activeSearchRequest = null;
+        activeArticleRequest = null;
+        searchRequestId += 1;
+        articleRequestId += 1;
+        searchBusy = false;
+        articleBusy = false;
+        pendingArticleTitle = "";
+        currentArticle = null;
+        currentArticleKey = "";
+        articlePages = [];
+        articlePageIndex = 0;
+        articleFocused = false;
+        errorText = "";
+        paginateTimer.stop();
+        paginateRetryTimer.stop();
+        dismissKeyboard();
     }
 
     property color paperBase: "#e8decc"
@@ -37,15 +56,23 @@ Rectangle {
     property var currentArticle: null
     property bool searchBusy: false
     property bool articleBusy: false
+    property bool lifecycleClosing: false
     property string searchStatusText: "Search for a subject, person, place, or event."
     property string articleStatusText: "Pick an article to open the reader."
     property string errorText: ""
+    property string pendingArticleTitle: ""
+    property string currentArticleKey: ""
     property int articleFontSize: 38
     property int articlePageInset: 18
     property int pagePadding: 26
     property int columnGap: 24
     property var articlePages: []
     property int articlePageIndex: 0
+    property bool paginationPending: false
+    property int searchRequestId: 0
+    property int articleRequestId: 0
+    property var activeSearchRequest: null
+    property var activeArticleRequest: null
     property string browseSection: "search"
     property int searchResultsPage: 0
     property int resultsPerPage: wideLayout ? 4 : 3
@@ -75,110 +102,96 @@ Rectangle {
         }
     }
 
+    function abortRequest(handle) {
+        if (handle && typeof handle.abort === "function") {
+            handle.abort();
+        }
+    }
+
+    function beginSearchRequest() {
+        abortRequest(activeSearchRequest);
+        activeSearchRequest = null;
+        searchRequestId += 1;
+        return searchRequestId;
+    }
+
+    function beginArticleRequest() {
+        abortRequest(activeArticleRequest);
+        activeArticleRequest = null;
+        articleRequestId += 1;
+        return articleRequestId;
+    }
+
+    function isSearchRequestActive(requestId) {
+        return !lifecycleClosing && requestId === searchRequestId;
+    }
+
+    function isArticleRequestActive(requestId) {
+        return !lifecycleClosing && requestId === articleRequestId;
+    }
+
+    function articleIdentity(title, language) {
+        return Cache.makeCacheKey("article", language || currentLanguage, title || "");
+    }
+
+    function resetArticleForLoad(title, identityKey) {
+        currentArticle = null;
+        currentArticleKey = identityKey || "";
+        pendingArticleTitle = title || "";
+        articlePages = [];
+        articlePageIndex = 0;
+        paginationPending = false;
+        paginateTimer.stop();
+        paginateRetryTimer.stop();
+
+        if (!wideLayout) {
+            articleFocused = true;
+        }
+    }
+
+    function articleViewportReady() {
+        return articlePageViewport.width >= 320 && articlePageViewport.height >= 420;
+    }
+
     function schedulePagination() {
-        paginateTimer.restart();
-    }
-
-    function joinChunks(chunks, startIndex, endIndex) {
-        return chunks.slice(startIndex, endIndex + 1).join("\n\n");
-    }
-
-    function textFitsViewport(text) {
-        articlePageMeasure.text = text;
-        return articlePageMeasure.contentHeight <= articlePageViewport.height + 2;
-    }
-
-    function buildArticleChunks() {
-        var mergedText;
-        var paragraphs;
-        var estimate;
-        var chunkLength;
-        var chunks = [];
-        var index;
-        var parts;
-        var partIndex;
-
-        if (!currentArticle) {
-            return [];
-        }
-
-        mergedText = Pagination.mergeSummaryAndBody(currentArticle.summaryText, currentArticle.bodyText);
-        paragraphs = Pagination.splitParagraphs(mergedText);
-        estimate = Pagination.estimateCharsPerPage(articlePageViewport.width, articlePageViewport.height, articleFontSize);
-        chunkLength = Math.max(120, Math.floor(estimate * 0.42));
-
-        for (index = 0; index < paragraphs.length; index += 1) {
-            parts = Pagination.splitLongParagraph(paragraphs[index], chunkLength);
-            for (partIndex = 0; partIndex < parts.length; partIndex += 1) {
-                if (parts[partIndex]) {
-                    chunks.push(parts[partIndex]);
-                }
-            }
-        }
-
-        return chunks;
-    }
-
-    function rebuildArticlePages() {
-        var chunks;
-        var pages;
-        var index;
-        var low;
-        var high;
-        var best;
-        var mid;
-        var candidate;
-        var reducedLength;
-        var replacements;
-
-        if (!currentArticle || articlePageViewport.width <= 0 || articlePageViewport.height <= 0) {
-            articlePages = [];
-            articlePageIndex = 0;
+        if (lifecycleClosing) {
             return;
         }
 
-        chunks = buildArticleChunks();
-        pages = [];
-        index = 0;
+        paginationPending = true;
+        paginateTimer.restart();
+    }
 
-        while (index < chunks.length) {
-            low = index;
-            high = chunks.length - 1;
-            best = -1;
+    function rebuildArticlePages() {
+        var pages;
 
-            while (low <= high) {
-                mid = Math.floor((low + high) / 2);
-                candidate = joinChunks(chunks, index, mid);
-
-                if (textFitsViewport(candidate)) {
-                    best = mid;
-                    low = mid + 1;
-                } else {
-                    high = mid - 1;
-                }
-            }
-
-            if (best < index) {
-                reducedLength = Math.max(80, Math.floor(chunks[index].length * 0.55));
-                replacements = Pagination.splitLongParagraph(chunks[index], reducedLength);
-
-                if (replacements.length <= 1) {
-                    pages.push(chunks[index]);
-                    index += 1;
-                } else {
-                    chunks = chunks.slice(0, index).concat(replacements, chunks.slice(index + 1));
-                }
-
-                continue;
-            }
-
-            pages.push(joinChunks(chunks, index, best));
-            index = best + 1;
+        if (lifecycleClosing) {
+            return;
         }
 
-        articlePageMeasure.text = "";
+        if (!currentArticle) {
+            articlePages = [];
+            articlePageIndex = 0;
+            paginationPending = false;
+            return;
+        }
+
+        if (!articleViewportReady()) {
+            paginateRetryTimer.restart();
+            return;
+        }
+
+        pages = Pagination.paginateArticle(
+            currentArticle.summaryText,
+            currentArticle.bodyText,
+            articlePageViewport.width,
+            articlePageViewport.height,
+            articleFontSize
+        );
+
         articlePages = pages.length ? pages : [currentArticle.summaryText || currentArticle.bodyText || ""];
         articlePageIndex = Math.max(0, Math.min(articlePageIndex, articlePages.length - 1));
+        paginationPending = false;
     }
 
     function setArticleFontSize(nextSize) {
@@ -229,6 +242,7 @@ Rectangle {
     }
 
     function hydrate() {
+        lifecycleClosing = false;
         currentLanguage = store.getLanguage();
         searchQuery = store.getLastQuery();
         recentSearches = store.getRecentSearches();
@@ -258,6 +272,8 @@ Rectangle {
     }
 
     function applySearchResults(results, statusText, queryText) {
+        searchBusy = false;
+        activeSearchRequest = null;
         searchResults = results || [];
         searchResultsPage = 0;
         browseSection = "search";
@@ -269,12 +285,17 @@ Rectangle {
         articleFocused = false;
     }
 
-    function applyArticle(article, statusText, focusArticle) {
+    function applyArticle(article, statusText, focusArticle, identityKey) {
+        articleBusy = false;
+        activeArticleRequest = null;
+        pendingArticleTitle = "";
+        articlePages = [];
+        articlePageIndex = 0;
         currentArticle = article;
+        currentArticleKey = identityKey || articleIdentity(article.canonicalTitle || article.title, article.language || currentLanguage);
         articleStatusText = statusText;
         errorText = "";
         recentArticles = store.recordRecentArticle(articleHistoryEntry(article));
-        articlePageIndex = 0;
         schedulePagination();
 
         if (!wideLayout) {
@@ -287,8 +308,11 @@ Rectangle {
         var targetLanguage = (languageOverride || currentLanguage || "en").toLowerCase();
         var searchKey;
         var cachedEntry;
+        var requestId;
 
+        lifecycleClosing = false;
         dismissKeyboard();
+        requestId = beginSearchRequest();
 
         if (targetLanguage !== currentLanguage) {
             setCurrentLanguage(targetLanguage);
@@ -298,6 +322,7 @@ Rectangle {
             searchStatusText = "Enter a title or topic to search.";
             searchResults = [];
             errorText = "";
+            searchBusy = false;
             return;
         }
 
@@ -313,12 +338,15 @@ Rectangle {
         searchStatusText = "Searching for \"" + trimmed + "\"...";
         errorText = "";
 
-        Wikipedia.search(
+        activeSearchRequest = Wikipedia.search(
             trimmed,
             targetLanguage,
             {},
             function (results) {
-                searchBusy = false;
+                if (!isSearchRequestActive(requestId)) {
+                    return;
+                }
+
                 currentLanguage = targetLanguage;
                 store.putCacheEntry("search", searchKey, Cache.createEntry(results));
                 applySearchResults(
@@ -328,7 +356,12 @@ Rectangle {
                 );
             },
             function (error) {
+                if (!isSearchRequestActive(requestId)) {
+                    return;
+                }
+
                 searchBusy = false;
+                activeSearchRequest = null;
                 if (cachedEntry) {
                     currentLanguage = targetLanguage;
                     applySearchResults(Cache.unwrap(cachedEntry), "Offline. Showing cached results for \"" + trimmed + "\".", trimmed);
@@ -347,7 +380,10 @@ Rectangle {
         var targetLanguage = (languageOverride || currentLanguage || "en").toLowerCase();
         var cacheKey;
         var cachedEntry;
+        var requestId;
+        var sameArticle;
 
+        lifecycleClosing = false;
         dismissKeyboard();
 
         if (targetLanguage !== currentLanguage) {
@@ -360,37 +396,55 @@ Rectangle {
 
         cacheKey = Cache.makeCacheKey("article", targetLanguage, requestedTitle);
         cachedEntry = store.getCacheEntry("article", cacheKey);
+        sameArticle = currentArticleKey === cacheKey || (currentArticle && articleIdentity(currentArticle.canonicalTitle || currentArticle.title, currentArticle.language || currentLanguage) === cacheKey);
+        requestId = beginArticleRequest();
 
         if (!forceRefresh && Cache.isFresh(cachedEntry, Cache.ARTICLE_TTL_MS)) {
-            applyArticle(Cache.markPayloadFromCache(Cache.unwrap(cachedEntry), false), "Showing cached article.", true);
+            applyArticle(Cache.markPayloadFromCache(Cache.unwrap(cachedEntry), false), "Showing cached article.", true, cacheKey);
             return;
         }
 
+        if (!sameArticle) {
+            resetArticleForLoad(requestedTitle, cacheKey);
+        } else if (!wideLayout) {
+            articleFocused = true;
+        }
+
         articleBusy = true;
+        pendingArticleTitle = requestedTitle;
         articleStatusText = "Loading \"" + requestedTitle + "\"...";
         errorText = "";
 
-        Wikipedia.loadArticle(
+        activeArticleRequest = Wikipedia.loadArticle(
             requestedTitle,
             targetLanguage,
             {},
             function (article) {
                 var canonicalKey;
 
-                articleBusy = false;
+                if (!isArticleRequestActive(requestId)) {
+                    return;
+                }
+
                 currentLanguage = targetLanguage;
                 store.putCacheEntry("article", cacheKey, Cache.createEntry(article, article.fetchedAt));
                 canonicalKey = Cache.makeCacheKey("article", targetLanguage, article.canonicalTitle || requestedTitle);
                 if (canonicalKey !== cacheKey) {
                     store.putCacheEntry("article", canonicalKey, Cache.createEntry(article, article.fetchedAt));
                 }
-                applyArticle(article, "Fresh text loaded from Wikipedia.", true);
+                applyArticle(article, "Fresh text loaded from Wikipedia.", true, canonicalKey);
             },
             function (error) {
+                if (!isArticleRequestActive(requestId)) {
+                    return;
+                }
+
                 articleBusy = false;
+                activeArticleRequest = null;
+                pendingArticleTitle = "";
                 if (cachedEntry) {
                     currentLanguage = targetLanguage;
-                    applyArticle(Cache.markPayloadFromCache(Cache.unwrap(cachedEntry), true), "Offline. Showing cached article.", true);
+                    applyArticle(Cache.markPayloadFromCache(Cache.unwrap(cachedEntry), true), "Offline. Showing cached article.", true, cacheKey);
                     return;
                 }
 
@@ -410,6 +464,7 @@ Rectangle {
 
     onWidthChanged: schedulePagination()
     onHeightChanged: schedulePagination()
+    onArticleFocusedChanged: schedulePagination()
     onCurrentArticleChanged: schedulePagination()
     onArticleFontSizeChanged: schedulePagination()
     onArticlePageInsetChanged: schedulePagination()
@@ -420,6 +475,18 @@ Rectangle {
         interval: 0
         repeat: false
         onTriggered: root.rebuildArticlePages()
+    }
+
+    Timer {
+        id: paginateRetryTimer
+
+        interval: 40
+        repeat: false
+        onTriggered: {
+            if (root.paginationPending) {
+                root.rebuildArticlePages();
+            }
+        }
     }
 
     TapHandler {
@@ -899,7 +966,7 @@ Rectangle {
 
                         Text {
                             width: parent.width
-                            text: "A quiet reader, not a scrolling feed."
+                            text: root.articleBusy && root.pendingArticleTitle ? "Loading " + root.pendingArticleTitle : "A quiet reader, not a scrolling feed."
                             color: root.ink
                             font.pixelSize: root.wideLayout ? 54 : 46
                             font.bold: true
@@ -909,9 +976,19 @@ Rectangle {
 
                         Text {
                             width: parent.width
-                            text: "Search for an article, then read one page at a time."
+                            text: root.articleBusy ? root.articleStatusText : "Search for an article, then read one page at a time."
                             color: root.mutedInk
                             font.pixelSize: 26
+                            horizontalAlignment: Text.AlignHCenter
+                            wrapMode: Text.Wrap
+                        }
+
+                        Text {
+                            visible: root.articleStatusText === "Article failed to load." && !!root.errorText
+                            width: parent.width
+                            text: root.errorText
+                            color: "#5f342b"
+                            font.pixelSize: 22
                             horizontalAlignment: Text.AlignHCenter
                             wrapMode: Text.Wrap
                         }
@@ -1005,6 +1082,8 @@ Rectangle {
 
                             anchors.fill: parent
                             anchors.margins: root.articlePageInset
+                            onWidthChanged: root.schedulePagination()
+                            onHeightChanged: root.schedulePagination()
 
                             Text {
                                 anchors.fill: parent
@@ -1078,20 +1157,6 @@ Rectangle {
                                 font.bold: true
                             }
                         }
-                    }
-
-                    Text {
-                        id: articlePageMeasure
-
-                        x: -100000
-                        width: articlePageViewport.width
-                        opacity: 0
-                        text: ""
-                        color: root.ink
-                        font.pixelSize: root.articleFontSize
-                        wrapMode: Text.Wrap
-                        lineHeight: 1.35
-                        lineHeightMode: Text.ProportionalHeight
                     }
                 }
             }

@@ -144,16 +144,23 @@ function normalizeArticlePayload(summaryResponse, extractResponse, language, fet
 
 function defaultRequest(url, onSuccess, onError) {
   var xhr;
+  var aborted = false;
 
   if (typeof XMLHttpRequest === "undefined") {
     onError(new Error("XMLHttpRequest is not available in this runtime."));
-    return;
+    return {
+      abort: function () {}
+    };
   }
 
   xhr = new XMLHttpRequest();
   xhr.open("GET", url);
   xhr.onreadystatechange = function () {
     var payload;
+
+    if (aborted) {
+      return;
+    }
 
     if (xhr.readyState !== XMLHttpRequest.DONE) {
       return;
@@ -172,71 +179,146 @@ function defaultRequest(url, onSuccess, onError) {
     onError(new Error("Request failed with status " + xhr.status + " for " + url));
   };
   xhr.onerror = function () {
+    if (aborted) {
+      return;
+    }
+
     onError(new Error("Network request failed for " + url));
   };
   xhr.send();
+
+  return {
+    abort: function () {
+      aborted = true;
+      if (xhr && typeof xhr.abort === "function") {
+        xhr.abort();
+      }
+    }
+  };
 }
 
 function requestJson(url, options, onSuccess, onError) {
   var requestImpl = options && typeof options.requestFn === "function" ? options.requestFn : defaultRequest;
-  requestImpl(url, onSuccess, onError);
+  var handle = requestImpl(url, onSuccess, onError);
+
+  return handle && typeof handle.abort === "function" ? handle : {
+    abort: function () {}
+  };
 }
 
 function search(query, language, options, onSuccess, onError) {
   var safeQuery = normalizeInlineWhitespace(query);
   var safeLanguage = normalizeInlineWhitespace(language || DEFAULT_LANGUAGE) || DEFAULT_LANGUAGE;
+  var aborted = false;
+  var requestHandle;
 
   if (!safeQuery) {
     onSuccess([]);
-    return;
+    return {
+      abort: function () {
+        aborted = true;
+      }
+    };
   }
 
-  requestJson(
+  requestHandle = requestJson(
     buildSearchUrl(safeQuery, safeLanguage, options && options.limit),
     options,
     function (response) {
+      if (aborted) {
+        return;
+      }
+
       onSuccess(normalizeSearchResults(response));
     },
-    onError
+    function (error) {
+      if (aborted) {
+        return;
+      }
+
+      onError(error);
+    }
   );
+
+  return {
+    abort: function () {
+      aborted = true;
+      requestHandle.abort();
+    }
+  };
 }
 
 function loadArticle(title, language, options, onSuccess, onError) {
   var safeTitle = normalizeInlineWhitespace(title);
   var safeLanguage = normalizeInlineWhitespace(language || DEFAULT_LANGUAGE) || DEFAULT_LANGUAGE;
   var fetchedAt = Date.now();
+  var aborted = false;
+  var requestHandle = null;
+
+  function guardSuccess(callback) {
+    return function (value) {
+      if (aborted) {
+        return;
+      }
+
+      callback(value);
+    };
+  }
+
+  function guardError(callback) {
+    return function (error) {
+      if (aborted) {
+        return;
+      }
+
+      callback(error);
+    };
+  }
 
   if (!safeTitle) {
     onError(new Error("Article title is required."));
-    return;
+    return {
+      abort: function () {
+        aborted = true;
+      }
+    };
   }
 
-  requestJson(
+  requestHandle = requestJson(
     buildSummaryUrl(safeTitle, safeLanguage),
     options,
-    function (summaryResponse) {
-      requestJson(
+    guardSuccess(function (summaryResponse) {
+      requestHandle = requestJson(
         buildExtractUrl(safeTitle, safeLanguage),
         options,
-        function (extractResponse) {
+        guardSuccess(function (extractResponse) {
           onSuccess(normalizeArticlePayload(summaryResponse, extractResponse, safeLanguage, fetchedAt, safeTitle));
-        },
-        function () {
+        }),
+        guardSuccess(function () {
           onSuccess(normalizeArticlePayload(summaryResponse, {}, safeLanguage, fetchedAt, safeTitle));
-        }
+        })
       );
-    },
-    function () {
-      requestJson(
+    }),
+    guardSuccess(function () {
+      requestHandle = requestJson(
         buildExtractUrl(safeTitle, safeLanguage),
         options,
-        function (extractResponse) {
+        guardSuccess(function (extractResponse) {
           onSuccess(normalizeArticlePayload({}, extractResponse, safeLanguage, fetchedAt, safeTitle));
-        },
-        onError
+        }),
+        guardError(onError)
       );
-    }
+    })
   );
+
+  return {
+    abort: function () {
+      aborted = true;
+      if (requestHandle) {
+        requestHandle.abort();
+      }
+    }
+  };
 }
 
 if (typeof module !== "undefined" && module.exports) {
@@ -253,4 +335,3 @@ if (typeof module !== "undefined" && module.exports) {
     stripHtml: stripHtml
   };
 }
-

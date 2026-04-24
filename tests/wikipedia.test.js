@@ -34,3 +34,79 @@ test("normalizeArticlePayload merges summary and extract into the stable article
   assert.equal(article.fetchedAt, 1234567890);
   assert.equal(article.fromCache, false);
 });
+
+test("search ignores late callbacks after abort", () => {
+  let callbacks;
+  let called = false;
+  const handle = Wikipedia.search("reMarkable", "en", {
+    requestFn(_url, onSuccess, onError) {
+      callbacks = { onSuccess, onError };
+      return { abort() {} };
+    }
+  }, () => {
+    called = true;
+  }, () => {
+    called = true;
+  });
+
+  handle.abort();
+  callbacks.onSuccess(searchFixture);
+  callbacks.onError(new Error("late failure"));
+
+  assert.equal(called, false);
+});
+
+test("loadArticle ignores late callbacks after abort", () => {
+  const requests = [];
+  let called = false;
+  const handle = Wikipedia.loadArticle("ReMarkable", "en", {
+    requestFn(url, onSuccess, onError) {
+      requests.push({ url, onSuccess, onError });
+      return { abort() {} };
+    }
+  }, () => {
+    called = true;
+  }, () => {
+    called = true;
+  });
+
+  handle.abort();
+  requests[0].onSuccess(summaryFixture);
+  requests[0].onError(new Error("late failure"));
+
+  assert.equal(requests.length, 1);
+  assert.equal(called, false);
+});
+
+test("loadArticle aborts the extract request after summary succeeds", () => {
+  const requests = [];
+  let extractAborted = false;
+  let called = false;
+  const handle = Wikipedia.loadArticle("ReMarkable", "en", {
+    requestFn(url, onSuccess, onError) {
+      const request = { url, onSuccess, onError };
+      requests.push(request);
+      return {
+        abort() {
+          if (requests.indexOf(request) === 1) {
+            extractAborted = true;
+          }
+        }
+      };
+    }
+  }, () => {
+    called = true;
+  }, () => {
+    called = true;
+  });
+
+  requests[0].onSuccess(summaryFixture);
+  assert.equal(requests.length, 2);
+
+  handle.abort();
+  requests[1].onSuccess(extractFixture);
+  requests[1].onError(new Error("late failure"));
+
+  assert.equal(extractAborted, true);
+  assert.equal(called, false);
+});

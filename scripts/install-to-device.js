@@ -19,6 +19,16 @@ const remoteAppDir = `${remoteAppLoadDir}/${APP_ID}`;
 const remoteBackupDir = process.env.RM_BACKUP_DIR || `/home/${user}/.appload-backups`;
 const overwrite = process.env.RM_OVERWRITE === "1";
 const remoteTarget = `${user}@${host}`;
+const sshOptions = [
+  "-o",
+  "StrictHostKeyChecking=accept-new",
+  "-o",
+  "ConnectTimeout=15",
+  "-o",
+  "ServerAliveInterval=10",
+  "-o",
+  "ServerAliveCountMax=2"
+];
 
 function runCommand(command, args) {
   if (!password) {
@@ -36,9 +46,18 @@ function runCommand(command, args) {
     `set cmd [list ${commandList}]`,
     "eval spawn $cmd",
     "expect {",
+    "  -re {(?i)are you sure you want to continue connecting} {",
+    "    send -- \"yes\\r\"",
+    "    exp_continue",
+    "  }",
     "  -re {(?i)password:} {",
     "    send -- \"$password\\r\"",
     "    exp_continue",
+    "  }",
+    "  timeout {",
+    "    close",
+    "    wait",
+    "    exit 124",
     "  }",
     "  eof",
     "}",
@@ -76,6 +95,7 @@ if (!fs.existsSync(RCC_PATH) || isRccPlaceholder(fs.readFileSync(RCC_PATH))) {
 }
 
 runOrExit("ssh", [
+  ...sshOptions,
   "-p",
   port,
   remoteTarget,
@@ -83,6 +103,7 @@ runOrExit("ssh", [
 ]);
 
 const existing = runCommand("ssh", [
+  ...sshOptions,
   "-p",
   port,
   remoteTarget,
@@ -97,12 +118,14 @@ if (existing.status === 0 && !overwrite) {
 if (existing.status === 0 && overwrite) {
   const backupPath = `${remoteBackupDir}/${APP_ID}.${Date.now()}`;
   runOrExit("ssh", [
+    ...sshOptions,
     "-p",
     port,
     remoteTarget,
     `mkdir -p ${remoteBackupDir}`
   ]);
   runOrExit("ssh", [
+    ...sshOptions,
     "-p",
     port,
     remoteTarget,
@@ -111,6 +134,7 @@ if (existing.status === 0 && overwrite) {
 }
 
 runOrExit("scp", [
+  ...sshOptions,
   "-P",
   port,
   "-r",

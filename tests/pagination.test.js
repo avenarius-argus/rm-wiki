@@ -23,3 +23,7 @@ test("paginateArticle splits long text into multiple reader pages", () => {
   assert.ok(pages[pages.length - 1].includes("Paragraph 39"));
 });
 
+test("estimateCharsPerPage uses the full reader viewport", () => {
+  assert.ok(Pagination.estimateCharsPerPage(1200, 1300, 38) > 1100);
+  assert.ok(Pagination.estimateCharsPerPage(760, 980, 34) > 650);
+});

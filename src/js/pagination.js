@@ -84,10 +84,10 @@ function estimateCharsPerPage(viewWidth, viewHeight, fontSize) {
   var safeWidth = Math.max(320, Number(viewWidth) || 0);
   var safeHeight = Math.max(420, Number(viewHeight) || 0);
   var safeFontSize = Math.max(24, Number(fontSize) || DEFAULT_FONT_SIZE);
-  var charsPerLine = Math.max(24, Math.floor(safeWidth / (safeFontSize * 0.78)));
-  var linesPerPage = Math.max(10, Math.floor(safeHeight / (safeFontSize * 1.82)));
+  var charsPerLine = Math.max(24, Math.floor(safeWidth / (safeFontSize * 0.58)));
+  var linesPerPage = Math.max(10, Math.floor(safeHeight / (safeFontSize * 1.42)));
 
-  return Math.max(320, Math.floor(charsPerLine * linesPerPage * 0.88));
+  return Math.max(320, Math.floor(charsPerLine * linesPerPage * 0.9));
 }
 
 function paginateArticle(summaryText, bodyText, viewWidth, viewHeight, fontSize) {
